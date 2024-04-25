@@ -165,6 +165,43 @@
             display: none;
             /* 초기에는 보이지 않도록 설정 */
         }
+
+        /* 모달 스타일 */
+        .modal {
+            display: none; /* 초기에는 숨겨진 상태 */
+            position: fixed;
+            z-index: 1; /* 다른 요소들보다 위에 위치 */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; /* 스크롤바 추가 */
+            background-color: rgba(0, 0, 0, 0.4); /* 배경색 */
+        }
+
+        /* 모달 내용 스타일 */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+
+        /* 닫기 버튼 스타일 */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
@@ -225,40 +262,19 @@
     </div>
 </div>
 
-<!-- 중복된 차량을 선택하는 팝업 창 -->
-<script>
-    function showCarSelectionPopup(cars) {
-        const popupWidth = 400;
-        const popupHeight = 300;
-        const leftPosition = (window.innerWidth - popupWidth) / 2 + window.screenX;
-        const topPosition = (window.innerHeight - popupHeight) / 2 + window.screenY;
-        const popupHTML = `
-    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; border: 2px solid #4CAF50; padding: 20px; width: 300px;">
-        <h2 style="text-align: center;">중복된 차량이 있습니다.</h2>
-        <ul style="list-style-type: none; padding: 0; text-align: center;">
-            ${cars.map(car => `<li><a href="javascript:void(0)" onclick="selectCar('${car.cno}')">${car.cno}</a></li>`).join('')}
+<!-- 모달 창 -->
+<div id="myModal" class="modal">
+    <!-- 모달 창 내용 -->
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>중복된 차량 선택</h2>
+        <ul id="carList">
+            <!-- 중복된 차량 목록이 여기에 표시됩니다. -->
         </ul>
-        <div style="text-align: center;">
-            <button id="closePopupBtn" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">닫기</button>
-        </div>
     </div>
-`;
-        const popupWindow = window.open('', '중복 차량 선택', `width=${popupWidth},height=${popupHeight},left=${leftPosition},top=${topPosition}`);
-        popupWindow.document.body.innerHTML = popupHTML;
+</div>
 
-        // 팝업 열릴 때 닫기 버튼에 이벤트 리스너 추가
-        const closePopupBtn = popupWindow.document.getElementById('closePopupBtn');
-        closePopupBtn.addEventListener('click', () => {
-            popupWindow.close(); // 팝업 닫기
-        });
-    }
-
-    // 팝업 닫기 함수
-    function closeCarSelectionPopup() {
-        window.close();
-        return false;
-    }
-
+<script>
     // 버튼을 누르면 입력이 되도록 하는 기능
     var carNo = '';
 
@@ -307,7 +323,7 @@
                             };
                             displayCarInfo(carInfo);
                         } else {
-                            showCarSelectionPopup(data);
+                            showCarSelectionModal(data);
                         }
                     } else {
                         console.log("차량 정보가 없습니다.");
@@ -320,6 +336,56 @@
         } else {
             alert("4자리의 차량번호를 입력하세요.");
         }
+    }
+
+    function showCarSelectionModal(cars) {
+        var modal = document.getElementById("myModal");
+        var carList = document.getElementById("carList");
+        carList.innerHTML = ''; // 목록 초기화
+        cars.forEach(car => {
+            var listItem = document.createElement('li');
+            var link = document.createElement('a');
+            link.href = "javascript:void(0)";
+            link.innerText = car.cno;
+            // 클릭 이벤트 핸들러 등록
+            link.onclick = function () {
+                selectCar(car.cno); // 클릭된 차량 번호를 전달
+            };
+            listItem.appendChild(link);
+            carList.appendChild(listItem);
+        });
+        modal.style.display = "block";
+
+        // 모달이 열릴 때마다 이전에 등록된 이벤트 핸들러 삭제
+        modal.addEventListener('shown.bs.modal', function () {
+            carList.querySelectorAll('a').forEach(link => {
+                link.removeEventListener('click', selectCar);
+            });
+        });
+    }
+
+    function selectCar(carNo) {
+        fetch(`/discount-by-number/${encodeURIComponent(carNo)}`) // 클릭된 차량 번호를 전달
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('차량을 찾을 수 없습니다.');
+                }
+                return response.json();
+            })
+            .then(carInfo => {
+                console.log("Selected car info:", carInfo); // 선택한 차량의 정보 출력
+                displayCarInfo(carInfo); // 선택한 차량 정보 표시
+                closeModal(); // 모달 닫기
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message);
+            });
+    }
+
+    function closeModal() {
+        var modal = document.getElementById("myModal");
+        modal.style.display = "none";
     }
 
     function submitDiscount() {
@@ -370,22 +436,6 @@
             .catch(error => console.error('Error:', error));
     }
 
-    function selectCar(carNo) {
-        fetch(`/discount/${encodeURIComponent(carNo)}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('차량을 찾을 수 없습니다.');
-                }
-                return response.json();
-            })
-            .then(carInfo => {
-                displayCarInfo(carInfo); // 선택한 차량 정보 표시
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert(error.message);
-            });
-    }
 
     function displayCarInfo(carInfo) {
         if (carInfo) {
@@ -402,8 +452,8 @@
             console.error('Car info is empty or undefined.');
         }
     }
-
 </script>
+
 </body>
 
 </html>
