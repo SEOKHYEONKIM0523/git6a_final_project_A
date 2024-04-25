@@ -17,6 +17,18 @@ class CarService():
             print("Error occurred while querying database:", e)
             return None
 
+    @classmethod
+    def get_car_info_by_number_exact(cls, cno):  # 함수명 변경
+        try:
+            with Session() as sess:
+                car_info = sess.query(Car).filter(Car.cno == cno).first()  # 리스트로 반환하는 부분 삭제
+                # cno와 일치하는 데이터를 검색하고 첫 번째 결과를 반환
+                return car_info
+        except SQLAlchemyError as e:
+            # 데이터베이스 작업 중 에러 발생 시 처리
+            print("Error occurred while querying database:", e)
+            return None
+
 
     @classmethod
     def apply_discount(cls, car_info_list, discount):

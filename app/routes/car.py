@@ -10,8 +10,6 @@ from fastapi.responses import JSONResponse
 
 car_router = APIRouter()
 
-
-
 templates = Jinja2Templates(directory='views/templates')
 
 # 차량 데이터 조회
@@ -19,7 +17,6 @@ templates = Jinja2Templates(directory='views/templates')
 @car_router.get('/discount', response_class=HTMLResponse)
 def cars(request: Request):
     return templates.TemplateResponse('discount_car.html', {'request': request, 'cars': cars})
-
 
 @car_router.get("/discount/{cno}", response_model=List[Car])
 def get_car_info_by_number(cno: str):
@@ -30,6 +27,15 @@ def get_car_info_by_number(cno: str):
         return car_info_list
     else:
         return JSONResponse(content={"error": "차량번호를 찾을 수 없습니다"}, status_code=404)
+
+@car_router.get("/discount-by-number/{cno}", response_model=Car)
+def get_car_info_by_number_exact(cno: str):
+    car_info = CarService.get_car_info_by_number_exact(cno)
+    if car_info:
+        car_info.cno = str(car_info.cno)
+        return car_info
+    else:
+        return JSONResponse(content={"error": "일치하는 차량번호를 찾을 수 없습니다"}, status_code=404)
 
 
 
